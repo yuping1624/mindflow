@@ -91,11 +91,20 @@ export class HuggingFaceProvider implements EmbeddingProvider {
     }
   }
 
+  async embed(text: string): Promise<number[]> {
+    const result = await this.generateEmbedding(text);
+    return result.embedding;
+  }
+
   getCostEstimate(tokenCount: number): number {
     // Hugging Face 有免費額度
     // 付費定價需要查看最新文件
     // 這裡假設免費額度內為 0
     return 0;
+  }
+
+  getName(): string {
+    return "Hugging Face";
   }
 }
 

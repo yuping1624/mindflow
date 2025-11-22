@@ -17,20 +17,20 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
 ## Next Steps 🚀
 
 ### Phase 1: Core Voice Journaling (Priority: High)
-- [ ] Voice recording component
-  - [ ] Audio recording UI with start/stop controls
-  - [ ] Audio playback preview
-  - [ ] File upload handling
-- [ ] Transcription flow
-  - [ ] Call `/api/transcribe` endpoint
-  - [ ] Display transcribed text
-  - [ ] Allow text editing before submission
-- [ ] Journal entry creation
-  - [ ] Save transcription to database
-  - [ ] Generate embedding
-  - [ ] Tone detection
-  - [ ] AI response generation
-  - [ ] Save complete entry with metadata
+- [x] Voice recording component
+  - [x] Audio recording UI with start/stop controls
+  - [x] Audio playback preview
+  - [x] File upload handling
+- [x] Transcription flow
+  - [x] Call `/api/transcribe` endpoint
+  - [x] Display transcribed text
+  - [x] Allow text editing before submission
+- [x] Journal entry creation
+  - [x] Save transcription to database
+  - [x] Generate embedding
+  - [x] Tone detection
+  - [x] AI response generation
+  - [x] Save complete entry with metadata
 
 ### Phase 2: Journal Management (Priority: High)
 - [ ] Journal entries list view

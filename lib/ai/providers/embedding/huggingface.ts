@@ -60,6 +60,11 @@ export class HuggingFaceEmbeddingProvider implements EmbeddingProvider {
     return result;
   }
 
+  getCostEstimate(tokenCount: number): number {
+    // Hugging Face has free tier
+    return 0;
+  }
+
   getName(): string {
     return "Hugging Face";
   }

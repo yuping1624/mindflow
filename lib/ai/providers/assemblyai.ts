@@ -20,14 +20,24 @@ export class AssemblyAIProvider implements TranscriptionProvider {
   async transcribe(audioFile: File | Buffer | string): Promise<TranscriptionResult> {
     try {
       // Step 1: Upload audio file
+      let body: Blob;
+      if (audioFile instanceof File) {
+        body = audioFile;
+      } else if (audioFile instanceof Buffer) {
+        body = new Blob([new Uint8Array(audioFile)]);
+      } else if (typeof audioFile === "string") {
+        const response = await fetch(audioFile);
+        body = await response.blob();
+      } else {
+        throw new Error("Unsupported audio file type");
+      }
+
       const uploadResponse = await fetch(`${this.baseURL}/upload`, {
         method: "POST",
         headers: {
           authorization: this.apiKey,
         },
-        body: audioFile instanceof File ? audioFile : 
-              audioFile instanceof Buffer ? audioFile :
-              await fetch(audioFile).then(r => r.blob()),
+        body: body,
       });
 
       if (!uploadResponse.ok) {
@@ -103,6 +113,10 @@ export class AssemblyAIProvider implements TranscriptionProvider {
   getCostEstimate(durationSeconds: number): number {
     // $0.00025 per second = $0.015 per minute
     return durationSeconds * 0.00025;
+  }
+
+  getName(): string {
+    return "AssemblyAI";
   }
 }
 

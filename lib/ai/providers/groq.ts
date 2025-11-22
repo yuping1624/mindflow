@@ -4,7 +4,7 @@
  * 付費：非常便宜，超快推理速度
  */
 
-import type { LLMProvider, LLMResponse, ToneAnalysis } from "../types";
+import type { LLMProvider, LLMResponse, ToneAnalysis, ChatMessage, LLMOptions } from "../types";
 
 export class GroqProvider implements LLMProvider {
   private apiKey: string;
@@ -117,6 +117,21 @@ export class GroqProvider implements LLMProvider {
     }
   }
 
+  async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
+    const response = await this.generateResponse(
+      messages.map((msg) => ({
+        role: msg.role as "system" | "user" | "assistant",
+        content: msg.content,
+      })),
+      {
+        temperature: options?.temperature,
+        maxTokens: options?.maxTokens,
+        model: options?.model,
+      }
+    );
+    return response.content;
+  }
+
   getCostEstimate(inputTokens: number, outputTokens: number, model?: string): number {
     const m = model || this.defaultModel;
     
@@ -137,6 +152,14 @@ export class GroqProvider implements LLMProvider {
     }
 
     return (inputTokens / 1_000_000) * inputPrice + (outputTokens / 1_000_000) * outputPrice;
+  }
+
+  getName(): string {
+    return "Groq";
+  }
+
+  getModel(): string {
+    return this.defaultModel;
   }
 }
 

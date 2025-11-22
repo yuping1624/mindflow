@@ -16,6 +16,7 @@ import type {
   ChatMessage,
   LLMOptions,
   ToneAnalysis,
+  TranscriptionResult,
 } from "./types";
 
 export class AIProviderManager {
@@ -33,7 +34,7 @@ export class AIProviderManager {
   /**
    * Transcribe audio to text
    */
-  async transcribe(audioFile: File): Promise<string> {
+  async transcribe(audioFile: File | Buffer | string): Promise<TranscriptionResult> {
     return this.transcriptionProvider.transcribe(audioFile);
   }
 
@@ -55,7 +56,14 @@ export class AIProviderManager {
    * Generate embeddings for multiple texts
    */
   async embedBatch(texts: string[]): Promise<number[][]> {
-    return this.embeddingProvider.embedBatch(texts);
+    if (this.embeddingProvider.embedBatch) {
+      return this.embeddingProvider.embedBatch(texts);
+    }
+    // Fallback: generate embeddings one by one
+    const embeddings = await Promise.all(
+      texts.map((text) => this.embeddingProvider.embed(text))
+    );
+    return embeddings;
   }
 
   /**
@@ -106,7 +114,7 @@ export class AIProviderManager {
     return {
       transcription: this.transcriptionProvider.getName(),
       llm: `${this.llmProvider.getName()} (${this.llmProvider.getModel()})`,
-      embedding: `${this.embeddingProvider.getName()} (${this.embeddingProvider.getDimensions()}D)`,
+      embedding: `${this.embeddingProvider.getName()}${this.embeddingProvider.getDimensions ? ` (${this.embeddingProvider.getDimensions()}D)` : ""}`,
     };
   }
 }

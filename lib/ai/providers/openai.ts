@@ -12,6 +12,8 @@ import type {
   EmbeddingResult,
   LLMResponse,
   ToneAnalysis,
+  ChatMessage,
+  LLMOptions,
 } from "../types";
 
 export class OpenAIProvider
@@ -37,11 +39,13 @@ export class OpenAIProvider
         file = audioFile;
       } else if (audioFile instanceof Buffer) {
         file = audioFile;
-      } else {
+      } else if (typeof audioFile === "string") {
         // URL string - 下載後轉換
         const response = await fetch(audioFile);
         const blob = await response.blob();
         file = new File([blob], "audio.mp3", { type: blob.type });
+      } else {
+        throw new Error("Unsupported audio file type");
       }
 
       const transcription = await this.client.audio.transcriptions.create({
@@ -51,7 +55,7 @@ export class OpenAIProvider
 
       return {
         text: transcription.text,
-        language: transcription.language || undefined,
+        language: undefined, // OpenAI Whisper doesn't return language in this response
       };
     } catch (error) {
       console.error("OpenAI transcription error:", error);
@@ -59,12 +63,49 @@ export class OpenAIProvider
     }
   }
 
-  getCostEstimate(durationSeconds: number): number {
-    // Whisper: $0.006 per minute = $0.0001 per second
-    return durationSeconds * 0.0001;
+  // Transcription cost estimate
+  getCostEstimate(durationSeconds: number): number;
+  // Embedding cost estimate
+  getCostEstimate(tokenCount: number): number;
+  // LLM cost estimate
+  getCostEstimate(inputTokens: number, outputTokens: number, model?: string): number;
+  
+  getCostEstimate(
+    durationSecondsOrTokens: number,
+    outputTokens?: number,
+    model?: string
+  ): number {
+    // If called with 3 args or 2 args (second is number), it's LLM
+    if (outputTokens !== undefined || arguments.length === 3) {
+      const inputTokens = durationSecondsOrTokens;
+      const m = model || "gpt-4o-mini";
+      let inputPrice = 0.15;
+      let outputPrice = 0.6;
+      if (m.includes("gpt-4o") && !m.includes("mini")) {
+        inputPrice = 2.5;
+        outputPrice = 10.0;
+      }
+      return (inputTokens / 1_000_000) * inputPrice + ((outputTokens || 0) / 1_000_000) * outputPrice;
+    }
+    
+    // If called with 1 arg, check context - for transcription it's duration, for embedding it's tokens
+    // We'll use a heuristic: if value is < 1000, it's likely duration in seconds
+    // Otherwise it's token count
+    if (durationSecondsOrTokens < 1000) {
+      // Transcription: $0.006 per minute = $0.0001 per second
+      return durationSecondsOrTokens * 0.0001;
+    } else {
+      // Embedding: $0.02 per 1M tokens
+      return (durationSecondsOrTokens / 1_000_000) * 0.02;
+    }
   }
 
   // Embedding
+  async embed(text: string): Promise<number[]> {
+    const result = await this.generateEmbedding(text);
+    return result.embedding;
+  }
+
   async generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
       const response = await this.client.embeddings.create({
@@ -80,11 +121,6 @@ export class OpenAIProvider
       console.error("OpenAI embedding error:", error);
       throw error;
     }
-  }
-
-  getCostEstimate(tokenCount: number): number {
-    // text-embedding-3-small: $0.02 per 1M tokens
-    return (tokenCount / 1_000_000) * 0.02;
   }
 
   // LLM
@@ -170,19 +206,27 @@ export class OpenAIProvider
     }
   }
 
-  getCostEstimate(inputTokens: number, outputTokens: number, model?: string): number {
-    const m = model || "gpt-4o-mini";
-    
-    // OpenAI 定價（2024）
-    let inputPrice = 0.15; // gpt-4o-mini
-    let outputPrice = 0.6;
+  async chat(messages: ChatMessage[], options?: LLMOptions): Promise<string> {
+    const response = await this.generateResponse(
+      messages.map((msg) => ({
+        role: msg.role as "system" | "user" | "assistant",
+        content: msg.content,
+      })),
+      {
+        temperature: options?.temperature,
+        maxTokens: options?.maxTokens,
+        model: options?.model,
+      }
+    );
+    return response.content;
+  }
 
-    if (m.includes("gpt-4o") && !m.includes("mini")) {
-      inputPrice = 2.5;
-      outputPrice = 10.0;
-    }
+  getName(): string {
+    return "OpenAI";
+  }
 
-    return (inputTokens / 1_000_000) * inputPrice + (outputTokens / 1_000_000) * outputPrice;
+  getModel(): string {
+    return "gpt-4o-mini";
   }
 }
 

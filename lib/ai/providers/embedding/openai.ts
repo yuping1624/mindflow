@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import type { EmbeddingProvider } from "@/lib/ai/types";
+import type { EmbeddingProvider, EmbeddingResult } from "@/lib/ai/types";
 
 export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   private client: OpenAI;
@@ -21,6 +21,14 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     return response.data[0].embedding;
   }
 
+  async generateEmbedding(text: string): Promise<EmbeddingResult> {
+    const embedding = await this.embed(text);
+    return {
+      embedding,
+      model: "text-embedding-3-small",
+    };
+  }
+
   async embedBatch(texts: string[]): Promise<number[][]> {
     const response = await this.client.embeddings.create({
       model: "text-embedding-3-small",
@@ -28,6 +36,11 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
     });
 
     return response.data.map((item) => item.embedding);
+  }
+
+  getCostEstimate(tokenCount: number): number {
+    // text-embedding-3-small: $0.02 per 1M tokens
+    return (tokenCount / 1_000_000) * 0.02;
   }
 
   getName(): string {

@@ -47,17 +47,30 @@ export interface ProviderConfig {
 export interface TranscriptionProvider {
   transcribe(audioFile: File | Buffer | string): Promise<TranscriptionResult>;
   getCostEstimate(durationSeconds: number): number;
+  getName(): string;
 }
 
 // Embedding Provider 介面
 export interface EmbeddingProvider {
-  generateEmbedding(text: string): Promise<EmbeddingResult>;
+  // Main embedding method (used by existing providers)
+  embed(text: string): Promise<number[]>;
+  embedBatch?(texts: string[]): Promise<number[][]>;
+  
+  // Optional: Advanced embedding method with metadata
+  generateEmbedding?(text: string): Promise<EmbeddingResult>;
+  
   getCostEstimate(tokenCount: number): number;
+  getName(): string;
+  getDimensions?(): number;
 }
 
 // LLM Provider 介面
 export interface LLMProvider {
-  generateResponse(
+  // Main chat method (used by existing providers)
+  chat(messages: ChatMessage[], options?: LLMOptions): Promise<string>;
+  
+  // Optional: Advanced response method with metadata
+  generateResponse?(
     messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
     options?: {
       temperature?: number;
@@ -68,6 +81,8 @@ export interface LLMProvider {
   
   analyzeTone(text: string): Promise<ToneAnalysis>;
   getCostEstimate(inputTokens: number, outputTokens: number, model?: string): number;
+  getName(): string;
+  getModel(): string;
 }
 
 // Chat Message (用於現有架構兼容)
