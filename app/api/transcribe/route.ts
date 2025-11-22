@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createOpenAIClient } from "@/lib/openai/client";
+import { getAIManager } from "@/lib/ai/manager";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,17 +13,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const openai = createOpenAIClient();
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-    });
+    const aiManager = getAIManager();
+    const result = await aiManager.transcribe(audioFile);
 
-    return NextResponse.json({ text: transcription.text });
+    return NextResponse.json({ 
+      text: result.text,
+      language: result.language,
+      duration: result.duration 
+    });
   } catch (error) {
     console.error("Transcription error:", error);
     return NextResponse.json(
-      { error: "Failed to transcribe audio" },
+      { 
+        error: "Failed to transcribe audio",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

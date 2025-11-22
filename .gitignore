@@ -35,3 +35,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# internal documentation (development notes)
+.docs/
+docs/internal/
+
