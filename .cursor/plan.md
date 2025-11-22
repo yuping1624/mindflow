@@ -32,32 +32,32 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
   - [x] AI response generation
   - [x] Save complete entry with metadata
 
-### Phase 2: Journal Management (Priority: High)
-- [ ] Journal entries list view
-  - [ ] Display user's entries with date/time
-  - [ ] Pagination or infinite scroll
-  - [ ] Filter by date range
-- [ ] Entry detail view
-  - [ ] Show full transcription
-  - [ ] Display AI response
-  - [ ] Show sentiment/emotion tags
-  - [ ] Show referenced past entries (RAG)
-- [ ] Entry editing/deletion
-  - [ ] Allow editing transcription
-  - [ ] Delete entries
+### Phase 2: Journal Management (Priority: High) ✅
+- [x] Journal entries list view
+  - [x] Display user's entries with date/time
+  - [x] Pagination or infinite scroll
+  - [ ] Filter by date range (API ready, UI pending)
+- [x] Entry detail view
+  - [x] Show full transcription
+  - [x] Display AI response
+  - [x] Show sentiment/emotion tags
+  - [x] Show referenced past entries (RAG)
+- [x] Entry editing/deletion
+  - [x] Allow editing transcription
+  - [x] Delete entries
 
-### Phase 3: Dashboard Enhancements (Priority: Medium)
-- [ ] Mood Horizon chart
-  - [ ] 7-day moving average sentiment
-  - [ ] Visual chart (recharts or similar)
-  - [ ] Trend indicators
-- [ ] Statistics cards
-  - [ ] Total entries count
-  - [ ] Average sentiment score
-  - [ ] Most common emotions
-- [ ] Recent entries preview
-  - [ ] Show last 5 entries
-  - [ ] Quick access to detail view
+### Phase 3: Dashboard Enhancements (Priority: Medium) ✅
+- [x] Mood Horizon chart
+  - [x] 7-day moving average sentiment
+  - [x] Visual chart (recharts)
+  - [x] Trend indicators
+- [x] Statistics cards
+  - [x] Total entries count
+  - [x] Average sentiment score
+  - [x] Most common emotions
+- [x] Recent entries preview
+  - [x] Show last 5 entries
+  - [x] Quick access to detail view
 
 ### Phase 4: AI Mode Selection (Priority: Medium)
 - [ ] Mode selector UI

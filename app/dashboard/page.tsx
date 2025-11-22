@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { DashboardStats } from "@/components/DashboardStats";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -107,13 +108,11 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Mood Tracker Card */}
-          <div className="p-6 border border-border rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Mood Horizon</h2>
-            <p className="text-muted-foreground">
-              Track your emotional journey over time.
-            </p>
-          </div>
+        </div>
+
+        {/* Dashboard Statistics and Charts */}
+        <div className="mt-8">
+          <DashboardStats />
         </div>
 
         {/* User Info */}
