@@ -1,0 +1,88 @@
+# Cursor Rules for MindFlow Project
+
+## Project Context
+This is MindFlow - an AI Voice Coach application built with Next.js 14, TypeScript, Supabase, and multiple AI providers.
+
+## Tech Stack
+- Framework: Next.js 14 (App Router), TypeScript, React 18
+- Database: Supabase (PostgreSQL + pgvector)
+- Auth: Supabase Auth
+- AI Providers: AssemblyAI, Groq, Hugging Face, OpenAI (via unified interface)
+- UI: Shadcn/UI, Tailwind CSS
+- State: Zustand
+
+## Code Style & Conventions
+
+### TypeScript
+- Use strict TypeScript
+- Prefer interfaces over types for object shapes
+- Use explicit return types for functions
+- Avoid `any` - use `unknown` if type is truly unknown
+
+### React/Next.js
+- Use Server Components by default, Client Components only when needed
+- Mark Client Components with `"use client"` directive
+- Use async/await for Server Components
+- Prefer Server Actions over API routes when possible
+- Use proper error boundaries
+
+### File Organization
+- API routes: `app/api/[route]/route.ts`
+- Components: `components/` directory
+- Utilities: `lib/` directory
+- Types: `types/` directory
+- Database schemas: `db/` directory
+
+### Naming Conventions
+- Components: PascalCase (e.g., `UserProfile.tsx`)
+- Files: kebab-case for routes, PascalCase for components
+- Functions: camelCase
+- Constants: UPPER_SNAKE_CASE
+- Types/Interfaces: PascalCase
+
+## AI Provider Usage
+- Always use the unified AI manager interface (`getAIManager()`)
+- Never directly instantiate provider classes in business logic
+- Check environment variables before using providers
+- Handle provider errors gracefully with fallbacks
+
+## Database
+- Always use Supabase client with proper RLS (Row Level Security)
+- Use service role key ONLY in API routes, never in frontend
+- Always validate user authentication before database operations
+- Use parameterized queries to prevent SQL injection
+
+## Security
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` to frontend
+- Always verify user authentication in API routes
+- Validate and sanitize user inputs
+- Use RLS policies for data access control
+
+## Error Handling
+- Use try-catch blocks for async operations
+- Provide meaningful error messages to users
+- Log errors server-side for debugging
+- Never expose sensitive error details to frontend
+
+## Performance
+- Use Next.js Image component for images
+- Implement proper loading states
+- Use React Suspense where appropriate
+- Optimize database queries (use indexes, limit results)
+
+## Testing Considerations
+- Write testable code (pure functions where possible)
+- Mock external services in tests
+- Test error cases, not just happy paths
+
+## Documentation
+- Add JSDoc comments for complex functions
+- Keep README.md updated
+- Document API endpoints
+- Include examples in code comments when helpful
+
+## Git Workflow
+- Use conventional commit messages (feat:, fix:, docs:, etc.)
+- Keep commits focused and atomic
+- Don't commit `.env.local` or `.docs/` folder
+
