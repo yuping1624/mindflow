@@ -83,12 +83,11 @@ export function createEmbeddingProvider(
     case "openai":
       return new OpenAIEmbeddingProvider();
     case "huggingface":
-      // Using all-MiniLM-L6-v2 (384D) as default
-      // For 768D, use: "sentence-transformers/all-mpnet-base-v2", 768
-      return new HuggingFaceEmbeddingProvider(
-        "sentence-transformers/all-MiniLM-L6-v2",
-        384
-      );
+      // Model can be set via HUGGINGFACE_EMBEDDING_MODEL environment variable
+      // Default: sentence-transformers/all-MiniLM-L6-v2 (384D)
+      // Alternative: BAAI/bge-small-en-v1.5 (384D, often more reliable)
+      // Alternative: sentence-transformers/all-mpnet-base-v2 (768D)
+      return new HuggingFaceEmbeddingProvider();
     default:
       throw new Error(`Unknown embedding provider: ${type}`);
   }

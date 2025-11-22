@@ -16,11 +16,18 @@ export default function JournalPage(): JSX.Element {
   const [editedTranscription, setEditedTranscription] = useState<string>("");
   const [showEditMode, setShowEditMode] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
+  const [entryId, setEntryId] = useState<string | null>(null);
   const router = useRouter();
 
   const handleRecordingComplete = (blob: Blob): void => {
     setAudioBlob(blob);
     setError(null);
+    setAiResponse(null);
+    setEntryId(null);
+    setTranscription("");
+    setEditedTranscription("");
+    setShowEditMode(false);
   };
 
   const handleTranscribe = async (): Promise<void> => {
@@ -92,20 +99,38 @@ export default function JournalPage(): JSX.Element {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "儲存失敗");
+        const errorMessage = errorData.details 
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || "儲存失敗";
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+      console.log("Journal entry created successfully:", data);
       
-      // 成功後導向到 dashboard
-      // TODO: 可以顯示成功訊息或 AI 回應預覽
-      router.push("/dashboard");
-      router.refresh();
+      // 檢查響應中是否有錯誤
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      // 檢查是否成功創建
+      if (!data.success && !data.entryId) {
+        throw new Error("未能成功創建日記條目，請重試");
+      }
+      
+      // 保存 AI 回應和 entry ID，顯示結果而不是立即跳轉
+      setAiResponse(data.aiResponse || null);
+      setEntryId(data.entryId || null);
+      setIsUploading(false);
     } catch (err) {
       console.error("Save error:", err);
-      setError(err instanceof Error ? err.message : "儲存失敗，請重試");
-    } finally {
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : "儲存失敗，請重試";
+      setError(errorMessage);
+      // 確保錯誤訊息顯示，不要跳轉
       setIsUploading(false);
+      return; // 不要繼續執行，避免跳轉
     }
   };
 
@@ -226,6 +251,38 @@ export default function JournalPage(): JSX.Element {
                 {error}
               </div>
             )}
+          </div>
+        )}
+
+        {/* AI Response Display */}
+        {aiResponse && (
+          <div className="mt-8 p-6 border border-border rounded-lg bg-muted/50">
+            <h2 className="text-lg font-semibold mb-4">AI 回應</h2>
+            <p className="text-muted-foreground whitespace-pre-wrap mb-4">{aiResponse}</p>
+            <div className="flex gap-4">
+              {entryId && (
+                <Link
+                  href={`/dashboard/entries/${entryId}`}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+                >
+                  查看完整詳情
+                </Link>
+              )}
+              <button
+                onClick={() => {
+                  setAiResponse(null);
+                  setEntryId(null);
+                  setAudioBlob(null);
+                  setTranscription("");
+                  setEditedTranscription("");
+                  setShowEditMode(false);
+                  router.push("/dashboard");
+                }}
+                className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
+              >
+                返回 Dashboard
+              </button>
+            </div>
           </div>
         )}
       </div>

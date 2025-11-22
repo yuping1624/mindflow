@@ -8,7 +8,7 @@ import type { EmbeddingProvider, EmbeddingResult } from "../types";
 
 export class HuggingFaceProvider implements EmbeddingProvider {
   private apiKey: string;
-  private baseURL: string = "https://api-inference.huggingface.co/pipeline";
+  private baseURL: string = "https://router.huggingface.co/pipeline";
   private model: string = "sentence-transformers/all-MiniLM-L6-v2"; // 384 dimensions
   // 或使用 "sentence-transformers/all-mpnet-base-v2" (768 dimensions)
 
@@ -20,23 +20,23 @@ export class HuggingFaceProvider implements EmbeddingProvider {
 
   async generateEmbedding(text: string): Promise<EmbeddingResult> {
     try {
-      // 使用 Hugging Face Inference API
-      const response = await fetch(
-        `https://api-inference.huggingface.co/pipeline/feature-extraction/${this.model}`,
-        {
-          method: "POST",
-          headers: {
-            ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
-            "Content-Type": "application/json",
+      // Use new router API endpoint
+      // Format: https://router.huggingface.co/hf-inference/models/{model}/pipeline/feature-extraction
+      const apiUrl = `https://router.huggingface.co/hf-inference/models/${this.model}/pipeline/feature-extraction`;
+      
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          ...(this.apiKey && { Authorization: `Bearer ${this.apiKey}` }),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: text,
+          options: {
+            wait_for_model: true,
           },
-          body: JSON.stringify({
-            inputs: text,
-            options: {
-              wait_for_model: true, // 等待模型載入
-            },
-          }),
-        }
-      );
+        }),
+      });
 
       if (!response.ok) {
         // 如果模型還在載入，等待後重試

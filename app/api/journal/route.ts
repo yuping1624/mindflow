@@ -38,7 +38,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const aiManager = getAIManager();
+    // Initialize AI Manager (may throw if API keys are missing)
+    let aiManager;
+    try {
+      aiManager = getAIManager();
+    } catch (aiError) {
+      console.error("Failed to initialize AI Manager:", aiError);
+      return NextResponse.json(
+        {
+          error: "AI service configuration error",
+          details: aiError instanceof Error ? aiError.message : "Failed to initialize AI providers. Please check your API keys.",
+        },
+        { status: 500 }
+      );
+    }
+
     const serviceSupabase = createServiceRoleClient();
 
     // Step 1: Save transcription to DB (temporary entry)
@@ -63,7 +77,24 @@ export async function POST(request: NextRequest) {
 
     try {
       // Step 2: Generate Embedding
-      const embedding = await aiManager.embed(transcription);
+      let embedding: number[];
+      try {
+        embedding = await aiManager.embed(transcription);
+      } catch (embedError) {
+        console.error("Embedding generation error:", embedError);
+        const errorMessage = embedError instanceof Error ? embedError.message : "Unknown error";
+        
+        // If Hugging Face fails with 410 Gone, suggest using OpenAI as fallback
+        if (errorMessage.includes("410 Gone") || errorMessage.includes("model unavailable")) {
+          throw new Error(
+            `${errorMessage}. ` +
+            `Suggestion: Set AI_EMBEDDING_PROVIDER=openai in your .env.local file to use OpenAI embeddings instead, ` +
+            `or try a different Hugging Face model by setting HUGGINGFACE_EMBEDDING_MODEL environment variable.`
+          );
+        }
+        
+        throw new Error(`Failed to generate embedding: ${errorMessage}`);
+      }
 
       // Handle dimension mismatch: Hugging Face returns 384D, DB expects 1536D
       // For now, we'll pad the embedding to 1536 dimensions
@@ -101,7 +132,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Step 3: Tone Detection
-      const toneAnalysis = await aiManager.analyzeTone(transcription);
+      let toneAnalysis;
+      try {
+        toneAnalysis = await aiManager.analyzeTone(transcription);
+      } catch (toneError) {
+        console.error("Tone analysis error:", toneError);
+        throw new Error(`Failed to analyze tone: ${toneError instanceof Error ? toneError.message : "Unknown error"}`);
+      }
 
       // Step 4: Model Routing Decision
       // Note: Current AI manager uses default provider (Groq)
@@ -116,12 +153,14 @@ export async function POST(request: NextRequest) {
       // Step 5: RAG Retrieval - Find similar past entries
       let relatedEntries: any[] = [];
       try {
-        // Call match_entries function (uses auth.uid() internally, no user_id param needed)
-        // Note: For service role client, we need to use regular client for RPC calls
-        // because RPC functions use auth.uid() which requires user context
+        // Call match_entries function
+        // Note: match_entries requires match_user_id parameter for security
+        // We use the regular supabase client (not service role) for RPC calls
+        // because RPC functions should use user context
         const { data: matchedEntries, error: ragError } = await supabase
           .rpc("match_entries", {
             query_embedding: finalEmbedding, // Pass as array, Supabase handles conversion to vector
+            match_user_id: user.id, // Explicitly pass user ID for security
             match_threshold: 0.7,
             match_count: 5,
             exclude_entry_id: entry.id,
@@ -131,6 +170,7 @@ export async function POST(request: NextRequest) {
           relatedEntries = matchedEntries;
         } else if (ragError) {
           console.error("RAG retrieval error:", ragError);
+          // Continue without RAG context - not critical for basic functionality
         }
       } catch (ragError) {
         console.error("RAG retrieval error:", ragError);
@@ -145,16 +185,22 @@ export async function POST(request: NextRequest) {
       // Adjust maxTokens based on mode (listening = shorter, coaching = longer)
       const maxTokens = aiMode === "listening" ? 100 : aiMode === "coaching" ? 500 : 300;
       
-      const llmResponse = await aiManager.chat(
-        [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        {
-          temperature: aiMode === "listening" ? 0.7 : 0.8,
-          maxTokens: maxTokens,
-        }
-      );
+      let llmResponse: string;
+      try {
+        llmResponse = await aiManager.chat(
+          [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage },
+          ],
+          {
+            temperature: aiMode === "listening" ? 0.7 : 0.8,
+            maxTokens: maxTokens,
+          }
+        );
+      } catch (llmError) {
+        console.error("LLM response generation error:", llmError);
+        throw new Error(`Failed to generate AI response: ${llmError instanceof Error ? llmError.message : "Unknown error"}`);
+      }
 
       // Step 7: Update entry with AI analysis results
       const { error: updateError } = await serviceSupabase
@@ -196,13 +242,29 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       console.error("Journal processing error:", error);
       
+      // Log detailed error information
+      if (error instanceof Error) {
+        console.error("Error name:", error.name);
+        console.error("Error message:", error.message);
+        console.error("Error stack:", error.stack);
+      }
+      
       // Clean up entry if processing failed
-      await serviceSupabase.from("entries").delete().eq("id", entry.id);
+      try {
+        await serviceSupabase.from("entries").delete().eq("id", entry.id);
+      } catch (cleanupError) {
+        console.error("Error cleaning up entry:", cleanupError);
+      }
       
       return NextResponse.json(
         {
           error: "Failed to process journal entry",
           details: error instanceof Error ? error.message : "Unknown error",
+          // Include more details in development
+          ...(process.env.NODE_ENV === "development" ? {
+            errorType: error instanceof Error ? error.name : typeof error,
+            stack: error instanceof Error ? error.stack : undefined,
+          } : {}),
         },
         { status: 500 }
       );

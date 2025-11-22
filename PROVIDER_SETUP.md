@@ -37,6 +37,12 @@
 
 #### Hugging Face (Embeddings)
 1. 前往 [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. **重要：創建 Token 時，必須勾選 "Read" 權限**
+   - 點擊 "New token"
+   - 輸入 Token 名稱
+   - ✅ **勾選 "Read" 權限**（必須！）
+   - 點擊 "Generate token"
+   - 複製 Token（只會顯示一次）
 2. 建立新的 Access Token
 3. **注意**：API key 是可選的（有免費額度），但建議設定以獲得更好的 rate limits
 
@@ -156,10 +162,10 @@ console.log(response.cost);   // 估算成本
 ## ⚠️ 注意事項
 
 ### Hugging Face Embedding 維度
-
-Hugging Face 的預設模型 (`all-MiniLM-L6-v2`) 產生 **384 維**的向量，而資料庫 schema 設定為 **1536 維**（OpenAI 的格式）。
-
-**解決方案**：
+ 
+ Hugging Face 的預設模型 (`all-MiniLM-L6-v2`) 產生 **384 維**的向量，而資料庫 schema 設定為 **1536 維**（OpenAI 的格式）。
+ 
+ **解決方案**：
 1. **使用 OpenAI embeddings**（如果有多餘的 credits）
 2. **調整資料庫 schema** 支援 384 或 768 維度
 3. **使用填充方法**（不推薦，但可用於開發）
@@ -188,9 +194,20 @@ Error: Unknown transcription provider: xxx
 
 **解決**：檢查 `AI_TRANSCRIPTION_PROVIDER` 環境變數是否正確
 
-### Hugging Face 模型載入中
+### Hugging Face 常見問題
 
+#### 模型載入中 (503 錯誤)
 如果 Hugging Face API 返回 503 錯誤，表示模型正在載入。系統會自動重試，但可能需要等待幾秒到幾分鐘。
+
+#### API Token 權限問題 (410 Gone 或 403 Forbidden)
+如果遇到 410 Gone 或 403 Forbidden 錯誤，通常是因為 API Token 沒有正確的權限：
+1. 前往 [Hugging Face Settings > Access Tokens](https://huggingface.co/settings/tokens)
+2. 檢查你的 Token 是否有 **Read 權限**
+3. 如果沒有，創建新 Token 並確保勾選 "Read" 權限
+4. 更新 `.env.local` 中的 `HUGGINGFACE_API_KEY`
+5. 重啟開發伺服器
+
+詳細說明請參考 [.docs/HUGGINGFACE_FIX.md](.docs/HUGGINGFACE_FIX.md)
 
 ## 📚 更多資訊
 

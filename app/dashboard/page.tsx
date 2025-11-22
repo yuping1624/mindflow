@@ -21,6 +21,14 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .single();
 
+  // 取得最近的日記條目（最多 5 條）
+  const { data: recentEntries } = await supabase
+    .from("entries")
+    .select("id, transcription, detected_tone, emotion_tags, created_at")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(5);
+
   return (
     <main className="flex min-h-screen flex-col p-8">
       <div className="z-10 max-w-7xl w-full mx-auto">
@@ -61,10 +69,42 @@ export default async function DashboardPage() {
 
           {/* Recent Entries Card */}
           <div className="p-6 border border-border rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Recent Entries</h2>
-            <p className="text-muted-foreground">
-              Your journal entries will appear here.
-            </p>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Recent Entries</h2>
+              <Link
+                href="/dashboard/entries"
+                className="text-sm text-muted-foreground hover:text-foreground"
+              >
+                View All
+              </Link>
+            </div>
+            {recentEntries && recentEntries.length > 0 ? (
+              <div className="space-y-3">
+                {recentEntries.map((entry) => (
+                  <Link
+                    key={entry.id}
+                    href={`/dashboard/entries/${entry.id}`}
+                    className="block p-3 border border-border rounded-md hover:bg-accent transition-colors"
+                  >
+                    <p className="text-sm line-clamp-2 mb-2">
+                      {entry.transcription}
+                    </p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        {new Date(entry.created_at).toLocaleDateString()}
+                      </span>
+                      {entry.detected_tone && (
+                        <span className="capitalize">{entry.detected_tone}</span>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                No entries yet. Start recording to create your first entry!
+              </p>
+            )}
           </div>
 
           {/* Mood Tracker Card */}
