@@ -36,7 +36,7 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
 - [x] Journal entries list view
   - [x] Display user's entries with date/time
   - [x] Pagination or infinite scroll
-  - [ ] Filter by date range (API ready, UI pending)
+  - [x] Filter by date range
 - [x] Entry detail view
   - [x] Show full transcription
   - [x] Display AI response
@@ -59,17 +59,20 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
   - [x] Show last 5 entries
   - [x] Quick access to detail view
 
-### Phase 4: AI Mode Selection (Priority: Medium)
-- [ ] Mode selector UI
-  - [ ] Listening mode option
-  - [ ] Coaching mode option
-  - [ ] Smart mode option (default)
-- [ ] Mode-specific prompts
-  - [ ] Different system prompts per mode
-  - [ ] Mode-aware response generation
-- [ ] User preference saving
-  - [ ] Save default mode to profile
-  - [ ] Allow per-entry mode override
+### Phase 4: AI Mode Selection (Priority: Medium) ✅
+- [x] Mode selector UI
+  - [x] Listening mode option
+  - [x] Coaching mode option
+  - [x] Smart mode option (default)
+  - [x] Dashboard quick switch
+  - [x] Expandable detailed descriptions
+- [x] Mode-specific prompts
+  - [x] Different system prompts per mode
+  - [x] Mode-aware response generation
+- [x] User preference saving
+  - [x] Save default mode to profile (auto-update on selection)
+  - [x] Store last used mode in localStorage
+  - [x] Allow per-entry mode override
 
 ### Phase 5: RAG Implementation (Priority: Medium)
 - [ ] Embedding generation
@@ -95,7 +98,18 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
   - [ ] Monthly cost summary
   - [ ] Cost optimization tips
 
-### Phase 7: Polish & Optimization (Priority: Low)
+### Phase 7: UI/UX Refactoring (Priority: Medium) ✅
+- [x] Page structure reorganization
+  - [x] Dashboard as overview/navigation center
+  - [x] Separate analytics page (`/dashboard/analytics`)
+  - [x] Journal page for recording (`/dashboard/journal`)
+  - [x] Entries list page (`/dashboard/entries`)
+- [x] Navigation component
+  - [x] Unified navigation bar across dashboard pages
+  - [x] Active page highlighting
+  - [x] Quick access to all sections
+
+### Phase 8: Polish & Optimization (Priority: Low)
 - [ ] Loading states
   - [ ] Skeleton loaders
   - [ ] Progress indicators

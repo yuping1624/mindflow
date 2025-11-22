@@ -1,24 +1,21 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { DashboardStats } from "@/components/DashboardStats";
+import { DashboardAIModeSelector } from "@/components/DashboardAIModeSelector";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
-    error: authError,
   } = await supabase.auth.getUser();
 
-  // 如果未登入，導向到登入頁面
-  if (authError || !user) {
-    redirect("/login");
+  if (!user) {
+    return null;
   }
 
   // 取得用戶 profile
   const { data: profile } = await supabase
     .from("profiles")
-    .select("*")
+    .select("full_name, email, default_ai_mode, created_at")
     .eq("id", user.id)
     .single();
 
@@ -31,88 +28,107 @@ export default async function DashboardPage() {
     .limit(5);
 
   return (
-    <main className="flex min-h-screen flex-col p-8">
+    <div className="p-8">
       <div className="z-10 max-w-7xl w-full mx-auto">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back, {profile?.full_name || user.email}!
-            </p>
-          </div>
-          <form action="/api/auth/signout" method="post">
-            <button
-              type="submit"
-              className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors"
-            >
-              Sign Out
-            </button>
-          </form>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome back, {profile?.full_name || user.email}!
+          </p>
         </div>
 
-        {/* Main Content */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Quick Actions */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
           {/* Voice Journal Card */}
-          <div className="p-6 border border-border rounded-lg">
-            <h2 className="text-xl font-semibold mb-4">Voice Journal</h2>
-            <p className="text-muted-foreground mb-4">
+          <Link
+            href="/dashboard/journal"
+            className="p-6 border border-border rounded-lg hover:bg-accent transition-colors block"
+          >
+            <div className="text-4xl mb-3">🎤</div>
+            <h2 className="text-xl font-semibold mb-2">Voice Journal</h2>
+            <p className="text-muted-foreground text-sm">
               Record your thoughts and feelings. Our AI will help you understand
               your emotional patterns.
             </p>
-            <Link
-              href="/dashboard/journal"
-              className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
-              Start Recording
-            </Link>
-          </div>
+          </Link>
 
-          {/* Recent Entries Card */}
-          <div className="p-6 border border-border rounded-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Recent Entries</h2>
-              <Link
-                href="/dashboard/entries"
-                className="text-sm text-muted-foreground hover:text-foreground"
-              >
-                View All
-              </Link>
-            </div>
-            {recentEntries && recentEntries.length > 0 ? (
-              <div className="space-y-3">
-                {recentEntries.map((entry) => (
-                  <Link
-                    key={entry.id}
-                    href={`/dashboard/entries/${entry.id}`}
-                    className="block p-3 border border-border rounded-md hover:bg-accent transition-colors"
-                  >
-                    <p className="text-sm line-clamp-2 mb-2">
-                      {entry.transcription}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>
-                        {new Date(entry.created_at).toLocaleDateString()}
-                      </span>
-                      {entry.detected_tone && (
-                        <span className="capitalize">{entry.detected_tone}</span>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                No entries yet. Start recording to create your first entry!
-              </p>
-            )}
-          </div>
+          {/* Entries Card */}
+          <Link
+            href="/dashboard/entries"
+            className="p-6 border border-border rounded-lg hover:bg-accent transition-colors block"
+          >
+            <div className="text-4xl mb-3">📝</div>
+            <h2 className="text-xl font-semibold mb-2">All Entries</h2>
+            <p className="text-muted-foreground text-sm">
+              View and manage all your journal entries. Search, filter, and explore your journey.
+            </p>
+          </Link>
 
+          {/* Analytics Card */}
+          <Link
+            href="/dashboard/analytics"
+            className="p-6 border border-border rounded-lg hover:bg-accent transition-colors block"
+          >
+            <div className="text-4xl mb-3">📈</div>
+            <h2 className="text-xl font-semibold mb-2">Analytics</h2>
+            <p className="text-muted-foreground text-sm">
+              Track your emotional journey with charts, statistics, and insights.
+            </p>
+          </Link>
         </div>
 
-        {/* Dashboard Statistics and Charts */}
-        <div className="mt-8">
-          <DashboardStats />
+        {/* AI Mode Selector */}
+        <div className="mb-8">
+          <DashboardAIModeSelector />
+        </div>
+
+        {/* Recent Entries Preview */}
+        <div className="p-6 border border-border rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Recent Entries</h2>
+            <Link
+              href="/dashboard/entries"
+              className="text-sm text-muted-foreground hover:text-foreground"
+            >
+              View All →
+            </Link>
+          </div>
+          {recentEntries && recentEntries.length > 0 ? (
+            <div className="space-y-3">
+              {recentEntries.map((entry) => (
+                <Link
+                  key={entry.id}
+                  href={`/dashboard/entries/${entry.id}`}
+                  className="block p-3 border border-border rounded-md hover:bg-accent transition-colors"
+                >
+                  <p className="text-sm line-clamp-2 mb-2">
+                    {entry.transcription}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>
+                      {new Date(entry.created_at).toLocaleDateString()}
+                    </span>
+                    {entry.detected_tone && (
+                      <span className="capitalize">{entry.detected_tone}</span>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground text-sm mb-4">
+                No entries yet. Start recording to create your first entry!
+              </p>
+              <Link
+                href="/dashboard/journal"
+                className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+              >
+                Start Recording
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* User Info */}
@@ -125,6 +141,6 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

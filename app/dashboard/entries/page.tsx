@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { Entry } from "@/types/database";
@@ -23,13 +23,27 @@ export default function EntriesPage(): JSX.Element {
   });
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
-  const fetchEntries = async (page: number = 1) => {
+  const fetchEntries = useCallback(async (page: number = 1, start?: string, end?: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/entries?page=${page}&limit=10`);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: "10",
+      });
+      
+      if (start) {
+        params.append("startDate", start);
+      }
+      if (end) {
+        params.append("endDate", end);
+      }
+
+      const response = await fetch(`/api/entries?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error("Failed to fetch entries");
@@ -44,30 +58,37 @@ export default function EntriesPage(): JSX.Element {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchEntries(1);
   }, []);
+
+  // Initial load and when filters change
+  useEffect(() => {
+    fetchEntries(pagination.page, startDate || undefined, endDate || undefined);
+  }, [fetchEntries, pagination.page, startDate, endDate]);
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      fetchEntries(newPage);
+      setPagination((prev) => ({ ...prev, page: newPage }));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
+  const handleApplyFilter = () => {
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page on filter
+    // fetchEntries will be called by useEffect due to dependency change
+  };
+
+  const handleClearFilter = () => {
+    setStartDate("");
+    setEndDate("");
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page on clear
+    // fetchEntries will be called by useEffect due to dependency change
+  };
+
   return (
-    <main className="flex min-h-screen flex-col p-8">
+    <div className="p-8">
       <div className="z-10 max-w-4xl w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
-          >
-            ← Back to Dashboard
-          </Link>
           <h1 className="text-3xl font-bold mb-2">Journal Entries</h1>
           <p className="text-muted-foreground">
             View and manage your journal entries
@@ -87,6 +108,65 @@ export default function EntriesPage(): JSX.Element {
             {error}
           </div>
         )}
+
+        {/* Date Range Filter */}
+        <div className="mb-6 p-4 border border-border rounded-lg bg-background">
+          <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">
+                Start Date
+              </label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-medium mb-2">
+                End Date
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || undefined}
+                className="w-full px-3 py-2 border border-border rounded-md bg-background"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleApplyFilter}
+                disabled={loading}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                Apply Filter
+              </button>
+              {(startDate || endDate) && (
+                <button
+                  onClick={handleClearFilter}
+                  disabled={loading}
+                  className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors disabled:opacity-50"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          {(startDate || endDate) && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Showing entries from{" "}
+              {startDate
+                ? new Date(startDate).toLocaleDateString()
+                : "beginning"}{" "}
+              to{" "}
+              {endDate
+                ? new Date(endDate).toLocaleDateString()
+                : "today"}
+            </p>
+          )}
+        </div>
 
         {/* Entries List */}
         {!loading && !error && (
@@ -191,7 +271,7 @@ export default function EntriesPage(): JSX.Element {
           </>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

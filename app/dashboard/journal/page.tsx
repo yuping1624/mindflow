@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { VoiceRecorder } from "@/components/VoiceRecorder";
 import Link from "next/link";
-
-type AIMode = "listening" | "coaching" | "smart";
+import type { AIMode } from "@/types/database";
 
 export default function JournalPage(): JSX.Element {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [aiMode, setAiMode] = useState<AIMode>("smart");
+  const [expandedMode, setExpandedMode] = useState<AIMode | null>(null);
+  const [isSavingMode, setIsSavingMode] = useState<boolean>(false);
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [transcription, setTranscription] = useState<string>("");
@@ -19,6 +20,52 @@ export default function JournalPage(): JSX.Element {
   const [aiResponse, setAiResponse] = useState<string | null>(null);
   const [entryId, setEntryId] = useState<string | null>(null);
   const router = useRouter();
+
+  // Load last used mode from localStorage on mount
+  useEffect(() => {
+    const lastMode = localStorage.getItem("last_ai_mode") as AIMode | null;
+    if (lastMode && ["listening", "coaching", "smart"].includes(lastMode)) {
+      setAiMode(lastMode);
+    } else {
+      // Fallback: try to load from profile (via API)
+      fetch("/api/profile")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.profile?.default_ai_mode) {
+            setAiMode(data.profile.default_ai_mode);
+          }
+        })
+        .catch(() => {
+          // Ignore errors, use default "smart"
+        });
+    }
+  }, []);
+
+  // Save mode to profile and localStorage when mode changes
+  const handleModeChange = async (newMode: AIMode) => {
+    setAiMode(newMode);
+    // Save to localStorage for quick access
+    localStorage.setItem("last_ai_mode", newMode);
+    
+    // Immediately save to profile (auto-update default)
+    setIsSavingMode(true);
+    try {
+      await fetch("/api/profile", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          default_ai_mode: newMode,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to save mode preference:", err);
+      // Don't show error to user, localStorage is already saved
+    } finally {
+      setIsSavingMode(false);
+    }
+  };
 
   const handleRecordingComplete = (blob: Blob): void => {
     setAudioBlob(blob);
@@ -135,16 +182,10 @@ export default function JournalPage(): JSX.Element {
   };
 
   return (
-    <main className="flex min-h-screen flex-col p-8">
+    <div className="p-8">
       <div className="z-10 max-w-2xl w-full mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <Link
-            href="/dashboard"
-            className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-block"
-          >
-            ← Back to Dashboard
-          </Link>
           <h1 className="text-3xl font-bold mb-2">Voice Journal</h1>
           <p className="text-muted-foreground">
             Record your thoughts and feelings. Our AI will help you understand
@@ -157,26 +198,90 @@ export default function JournalPage(): JSX.Element {
           <h2 className="text-lg font-semibold mb-4">AI Mode</h2>
           <div className="grid grid-cols-3 gap-4">
             {(["listening", "coaching", "smart"] as AIMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setAiMode(mode)}
-                className={`px-4 py-3 rounded-md border transition-colors ${
-                  aiMode === mode
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border hover:bg-accent"
-                }`}
-              >
-                <div className="font-semibold capitalize">{mode}</div>
-                <div className="text-xs mt-1 opacity-80">
-                  {mode === "listening"
-                    ? "Validation & Support"
-                    : mode === "coaching"
-                    ? "Deep Insights"
-                    : "Adaptive"}
-                </div>
-              </button>
+              <div key={mode} className="flex flex-col">
+                <button
+                  onClick={() => handleModeChange(mode)}
+                  disabled={isSavingMode}
+                  className={`px-4 py-3 rounded-md border transition-colors ${
+                    aiMode === mode
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:bg-accent"
+                  } disabled:opacity-50`}
+                >
+                  <div className="font-semibold capitalize">{mode}</div>
+                  <div className="text-xs mt-1 opacity-80">
+                    {mode === "listening"
+                      ? "Validation & Support"
+                      : mode === "coaching"
+                      ? "Deep Insights"
+                      : "Adaptive"}
+                  </div>
+                </button>
+                <button
+                  onClick={() =>
+                    setExpandedMode(expandedMode === mode ? null : mode)
+                  }
+                  className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {expandedMode === mode ? "Hide details" : "Learn more"}
+                </button>
+              </div>
             ))}
           </div>
+
+          {/* Expanded Mode Details */}
+          {expandedMode && (
+            <div className="mt-4 p-4 bg-muted/50 rounded-md">
+              {expandedMode === "listening" && (
+                <div>
+                  <h3 className="font-semibold mb-2">Listening Mode</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The AI acts as a compassionate listener. It validates your
+                    feelings, mirrors your emotions, and provides support
+                    without giving advice. Responses are kept brief (under 50
+                    words) to focus on emotional validation.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Best for: When you need someone to listen and understand
+                    your feelings.
+                  </p>
+                </div>
+              )}
+              {expandedMode === "coaching" && (
+                <div>
+                  <h3 className="font-semibold mb-2">Coaching Mode</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The AI acts as a supportive coach. It validates your
+                    feelings first, then references patterns from your past
+                    entries if relevant, and asks one gentle,
+                    thought-provoking question to help you reflect. Responses are
+                    more detailed (up to 150 words).
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Best for: When you&apos;re ready for deeper insights and
+                    self-reflection.
+                  </p>
+                </div>
+              )}
+              {expandedMode === "smart" && (
+                <div>
+                  <h3 className="font-semibold mb-2">Smart Mode (Adaptive)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The AI adapts to your emotional state. It validates your
+                    feelings first, then adjusts its response based on your
+                    sentiment. If you seem distressed, it provides deeper
+                    support. If you&apos;re doing well, it offers gentle
+                    encouragement. It references patterns from your past entries
+                    when relevant.
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Best for: When you want the AI to automatically choose the
+                    best approach for your current emotional state.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Voice Recorder */}
@@ -286,7 +391,7 @@ export default function JournalPage(): JSX.Element {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 
