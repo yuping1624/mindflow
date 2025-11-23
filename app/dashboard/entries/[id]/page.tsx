@@ -11,7 +11,7 @@ export default function EntryDetailPage(): JSX.Element {
   const entryId = params.id as string;
 
   const [entry, setEntry] = useState<Entry | null>(null);
-  const [referencedEntries, setReferencedEntries] = useState<Entry[]>([]);
+  const [referencedEntries, setReferencedEntries] = useState<Array<Entry & { similarity?: number }>>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -295,27 +295,52 @@ export default function EntryDetailPage(): JSX.Element {
               Related Past Entries ({referencedEntries.length})
             </h2>
             <div className="space-y-3">
-              {referencedEntries.map((refEntry) => (
-                <Link
-                  key={refEntry.id}
-                  href={`/dashboard/entries/${refEntry.id}`}
-                  className="block p-4 border border-border rounded-md hover:bg-accent transition-colors"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(refEntry.created_at).toLocaleDateString()}
+              {referencedEntries.map((refEntry) => {
+                // Get similarity label (Option B from planning)
+                const getSimilarityLabel = (similarity?: number): { label: string; color: string } => {
+                  if (similarity === undefined || similarity === null) {
+                    return { label: "Related", color: "bg-muted" };
+                  }
+                  if (similarity > 0.8) {
+                    return { label: "Deep Connection", color: "bg-primary/20 text-primary" };
+                  } else if (similarity > 0.7) {
+                    return { label: "Related", color: "bg-blue-500/20 text-blue-600" };
+                  } else {
+                    return { label: "Somewhat Related", color: "bg-muted" };
+                  }
+                };
+
+                const similarityInfo = getSimilarityLabel(refEntry.similarity);
+
+                return (
+                  <Link
+                    key={refEntry.id}
+                    href={`/dashboard/entries/${refEntry.id}`}
+                    className="block p-4 border border-border rounded-md hover:bg-accent transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(refEntry.created_at).toLocaleDateString()}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {refEntry.similarity !== undefined && (
+                          <span className={`px-2 py-1 text-xs rounded-full font-medium ${similarityInfo.color}`}>
+                            {similarityInfo.label}
+                          </span>
+                        )}
+                        {refEntry.detected_tone && (
+                          <span className="px-2 py-1 text-xs rounded-full bg-muted capitalize">
+                            {refEntry.detected_tone}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-sm line-clamp-2 text-muted-foreground">
+                      {refEntry.transcription}
                     </p>
-                    {refEntry.detected_tone && (
-                      <span className="px-2 py-1 text-xs rounded-full bg-muted capitalize">
-                        {refEntry.detected_tone}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm line-clamp-2 text-muted-foreground">
-                    {refEntry.transcription}
-                  </p>
-                </Link>
-              ))}
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}

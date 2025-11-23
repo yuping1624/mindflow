@@ -74,17 +74,21 @@ AI Voice Coach application for emotional wellbeing through voice journaling with
   - [x] Store last used mode in localStorage
   - [x] Allow per-entry mode override
 
-### Phase 5: RAG Implementation (Priority: Medium)
-- [ ] Embedding generation
-  - [ ] Generate embeddings for new entries
-  - [ ] Store in embeddings table
-- [ ] Similar entry retrieval
-  - [ ] Use `match_entries` function
-  - [ ] Display related past entries
-  - [ ] Show similarity scores
-- [ ] Context injection
-  - [ ] Include past entries in AI prompt
-  - [ ] Reference patterns in responses
+### Phase 5: RAG Implementation (Priority: Medium) ✅
+- [x] Embedding generation
+  - [x] Generate embeddings for new entries (384D HuggingFace, no padding)
+  - [x] Store in embeddings table
+  - [x] Dimension validation (384D or 1536D)
+- [x] Similar entry retrieval
+  - [x] Use `match_entries` function (secure version with auth.uid())
+  - [x] Display related past entries in entry detail page
+  - [x] Show similarity scores with labels (Deep Connection/Related/Somewhat Related)
+  - [x] Clickable links to navigate to related entries
+- [x] Context injection
+  - [x] Include past entries in AI prompt (top 3 entries)
+  - [x] Reference patterns in responses
+  - [x] Mode-specific RAG usage (coaching/smart/listening)
+  - [x] Structured format with metadata (Date, Tone, Content)
 
 ### Phase 6: Cost Control & Analytics (Priority: Low)
 - [ ] Usage tracking

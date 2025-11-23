@@ -96,25 +96,17 @@ export async function POST(request: NextRequest) {
         throw new Error(`Failed to generate embedding: ${errorMessage}`);
       }
 
-      // Handle dimension mismatch: Hugging Face returns 384D, DB expects 1536D
-      // For now, we'll pad the embedding to 1536 dimensions
-      // TODO: Consider using OpenAI embeddings or updating schema to support 384D
-      let finalEmbedding: number[];
-      if (embedding.length === 384) {
-        // Pad to 1536 by repeating and scaling
-        finalEmbedding = [
-          ...embedding,
-          ...embedding.map((v) => v * 0.5),
-          ...embedding.map((v) => v * 0.25),
-          ...embedding.map((v) => v * 0.125),
-        ].slice(0, 1536);
-      } else if (embedding.length === 768) {
-        finalEmbedding = [...embedding, ...embedding];
-      } else if (embedding.length === 1536) {
-        finalEmbedding = embedding;
-      } else {
-        // Fallback: pad or truncate to 1536
-        finalEmbedding = [...embedding, ...new Array(1536 - embedding.length).fill(0)].slice(0, 1536);
+      // Use embedding directly - no padding
+      // Database schema should be updated to vector(384) for HuggingFace models
+      // For OpenAI embeddings (1536D), the schema would need to be vector(1536)
+      const finalEmbedding = embedding;
+      
+      // Validate embedding dimension
+      if (finalEmbedding.length !== 384 && finalEmbedding.length !== 1536) {
+        throw new Error(
+          `Unsupported embedding dimension: ${finalEmbedding.length}. ` +
+          `Expected 384 (HuggingFace) or 1536 (OpenAI).`
+        );
       }
 
       // Save embedding (Supabase pgvector expects array format)
@@ -151,18 +143,20 @@ export async function POST(request: NextRequest) {
       const selectedModel = needsPowerfulModel ? "powerful" : "standard";
 
       // Step 5: RAG Retrieval - Find similar past entries
+      // Constants for RAG parameters
+      const MIN_SIMILARITY_THRESHOLD = 0.65; // Slightly looser for HuggingFace models
+      const RAG_MATCH_COUNT = 5; // Retrieve top 5 from DB
+      const RAG_PROMPT_COUNT = 3; // Only inject top 3 into LLM prompt to save tokens
+      
       let relatedEntries: any[] = [];
       try {
-        // Call match_entries function
-        // Note: match_entries requires match_user_id parameter for security
-        // We use the regular supabase client (not service role) for RPC calls
-        // because RPC functions should use user context
+        // Call match_entries function (secure version using auth.uid())
+        // The function uses auth.uid() internally, so we don't pass user_id
         const { data: matchedEntries, error: ragError } = await supabase
           .rpc("match_entries", {
             query_embedding: finalEmbedding, // Pass as array, Supabase handles conversion to vector
-            match_user_id: user.id, // Explicitly pass user ID for security
-            match_threshold: 0.7,
-            match_count: 5,
+            match_threshold: MIN_SIMILARITY_THRESHOLD,
+            match_count: RAG_MATCH_COUNT,
             exclude_entry_id: entry.id,
           });
 
@@ -170,11 +164,13 @@ export async function POST(request: NextRequest) {
           relatedEntries = matchedEntries;
         } else if (ragError) {
           console.error("RAG retrieval error:", ragError);
-          // Continue without RAG context - not critical for basic functionality
+          // Graceful degradation: Continue without RAG context
+          // Log error but don't fail the entire request
         }
       } catch (ragError) {
         console.error("RAG retrieval error:", ragError);
-        // Continue without RAG context - not critical for basic functionality
+        // Graceful degradation: Continue without RAG context
+        // Log error but don't fail the entire request
       }
 
       // Step 6: Generate AI Response
@@ -288,13 +284,28 @@ function buildSystemPrompt(
   let prompt = "";
 
   // Add context from related entries if available
+  // Use structured format with metadata (Option C from planning)
+  // Only inject top 3 entries to save tokens
   if (relatedEntries.length > 0) {
-    prompt += "User's previous journal entries for context:\n";
+    prompt += "User's previous journal entries for context:\n\n";
     relatedEntries.slice(0, 3).forEach((entry, index) => {
-      const date = new Date(entry.created_at).toLocaleDateString();
-      prompt += `- ${date}: ${entry.transcription.substring(0, 100)}...\n`;
+      const date = new Date(entry.created_at).toISOString().split("T")[0]; // YYYY-MM-DD format
+      const tone = entry.detected_tone || "Neutral";
+      const transcription = entry.transcription;
+      
+      // Structured format: [Date: YYYY-MM-DD] [Tone: Neutral] Content: "..."
+      prompt += `[Date: ${date}] [Tone: ${tone}] Content: "${transcription}"\n\n`;
     });
-    prompt += "\nUse this context naturally in your response.\n\n";
+    
+    // Mode-specific RAG usage instructions
+    if (aiMode === "coaching") {
+      prompt += "Use this context to identify patterns and provide deeper insights. Reference specific past entries when relevant.\n\n";
+    } else if (aiMode === "smart") {
+      prompt += "Use this context to understand the user's emotional journey. Reference patterns when they provide meaningful insights.\n\n";
+    } else {
+      // listening mode - minimal RAG usage
+      prompt += "You may reference this context if it helps validate the user's feelings, but keep it minimal.\n\n";
+    }
   }
 
   // Mode-specific instructions
